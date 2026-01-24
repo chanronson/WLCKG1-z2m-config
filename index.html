@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WLCKG1 Log Parser</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        th,
+        td {
+            border: 1px solid #2a2a2a;
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1f1f1f;
+        }
+
+        tr:nth-child(even) {
+            background-color: #181818;
+        }
+
+        .badge {
+            background-color: #2b2b2b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: system-ui, sans-serif;
+}
+
+.card {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+}
+
+.step {
+  margin-bottom: 16px;
+}
+
+.instructions-list {
+  padding-left: 20px;
+}
+
+.instructions-list li {
+  margin-bottom: 8px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.warning {
+  color: #faa05b;
+  margin-bottom: 8px;
+}
+
+.primary-button {
+  padding: 8px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+    </style>
+</head>
+
+<body>
+<main class="container" aria-labelledby="page-title">
+  <header class="card">
+    <h1 id="page-title">WLCKG1 Raw Log Analyzer for zigbee2mqtt (Z2M)</h1>
+  </header>
+
+  <section class="card" aria-labelledby="instructions-title">
+    <h2 id="instructions-title">Instructions</h2>
+
+    <div class="step">
+      <p>Add this file:</p>
+      <p>
+        <a href="zigbee2mqtt/external_converters/wyze-lock-ext.js">
+          zigbee2mqtt/external_converters/wyze-lock-ext.js
+        </a>
+      </p>
+    </div>
+
+    <div class="step">
+      <p>Add the following to the bottom of your <code>config.yaml</code>:</p>
+      <pre aria-label="config.yaml example">
+external_converters:
+  - wyze-lock-ext.js
+      </pre>
+    </div>
+
+    <ol class="instructions-list">
+      <li>Restart the server</li>
+      <li>Open the logs in Z2M</li>
+      <li>Set <code>Logs limit</code> to <code>1000</code></li>
+      <li>Set <code>Log level config</code> to <code>debug</code></li>
+      <li>Clear the logs</li>
+      <li>
+        Write down the order you will complete the actions
+        (example: locked → unlock → open → close → lock → app → auto-lock)
+      </li>
+      <li>Perform each action with a 10-second pause between steps</li>
+      <li>Save the log file to your computer</li>
+    </ol>
+  </section>
+
+  <section class="card" aria-labelledby="upload-title">
+    <h2 id="upload-title">Log File</h2>
+
+    <div
+      id="warning"
+      class="warning"
+      role="alert"
+      aria-live="polite"
+      hidden
+    ></div>
+
+    <div class="form-group">
+      <label for="fileInput">Select log file</label>
+      <input
+        type="file"
+        id="fileInput"
+        accept=".log,.txt"
+      >
+    </div>
+
+    <button id="generateBtn" class="primary-button">
+      Generate Settings
+    </button>
+  </section>
+</main>
+
+    <pre id="output"></pre>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Data Length</th>
+                <th>Event Source</th>
+                <th>Event State</th>
+            </tr>
+        </thead>
+        <tbody id="results"></tbody>
+    </table>
+
+    <script>
+        const SOURCE_OPTIONS = ["Door", "Manual", "Auto", "App", "Lock"];
+        const STATE_OPTIONS = ["Open", "Closed", "Locked", "Unlocked"];
+        function onStateChange(select) {
+            const stateRaw = select.dataset.raw;
+            const newState = select.value;
+
+            document
+                .querySelectorAll(`select[data-type="state"][data-raw="${stateRaw}"]`)
+                .forEach(s => {
+                    s.value = newState;
+                });
+        }
+        function onSourceChange(select) {
+            const sourceRaw = select.dataset.raw;
+            const newSource = select.value;
+
+            document
+                .querySelectorAll(`select[data-type="source"][data-raw="${sourceRaw}"]`)
+                .forEach(s => {
+                    s.value = newSource;
+                    const row = s.closest("tr");
+                    validateRowState(row);
+                });
+        }
+        function validateRowState(row) {
+            const sourceSelect = row.querySelector('select[data-type="source"]');
+            const stateSelect = row.querySelector('select[data-type="state"]');
+
+            if (!sourceSelect || !stateSelect) return;
+
+            const source = sourceSelect.value;
+
+            const allowedStates =
+                source === "Door"
+                    ? ["Open", "Closed"]
+                    : ["Locked", "Unlocked"];
+
+            [...stateSelect.options].forEach(opt => {
+                if (opt.value === "") return;
+                opt.disabled = !allowedStates.includes(opt.value);
+            });
+
+            if (stateSelect.value && !allowedStates.includes(stateSelect.value)) {
+                stateSelect.value = "--";
+            }
+        }
+        function createSelect(options, type, rawValue) {
+            const select = document.createElement("select");
+            select.dataset.type = type;
+            select.dataset.raw = rawValue;
+
+            const empty = document.createElement("option");
+            empty.value = "";
+            empty.textContent = "--";
+            select.appendChild(empty);
+
+            options.forEach(opt => {
+                const o = document.createElement("option");
+                o.value = opt;
+                o.textContent = opt;
+                select.appendChild(o);
+            });
+
+            select.addEventListener("change", () => {
+                if (type === "source") {
+                    onSourceChange(select);
+                } else {
+                    onStateChange(select);
+                }
+            });
+
+            return select;
+        }
+        document.getElementById("fileInput").addEventListener("change", async function () {
+            const file = this.files[0];
+            if (!file) return;
+
+            const text = await file.text();
+            const lines = text.split(/\r?\n/);
+            const tbody = document.getElementById("results");
+            tbody.innerHTML = "";
+
+            for (const line of lines) {
+                if (!line.includes("WLCKG1")) continue;
+                if (!line.includes("type 'raw'")) continue;
+                if (!line.includes('"data":')) continue;
+
+                const tsMatch = line.match(/^\[(.*?)\]/);
+                if (!tsMatch) continue;
+
+                const jsonMatch = line.match(/'(\{.*?"type":"Buffer"\})'/);
+                if (!jsonMatch) continue;
+
+                let parsed;
+                try {
+                    parsed = JSON.parse(jsonMatch[1]);
+                } catch {
+                    continue;
+                }
+
+                if (!Array.isArray(parsed.data)) continue;
+
+                const len = parsed.data.length;
+                if (len <= 70 || len >= 90) continue;
+
+                const eventSource = parsed.data[57];
+                const eventState = parsed.data[46];
+
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+            <td>${tsMatch[1]}</td>
+            <td>${len}</td>
+        `;
+
+                const sourceCell = document.createElement("td");
+                sourceCell.appendChild(createSelect(SOURCE_OPTIONS, "source", eventSource));
+
+                const stateCell = document.createElement("td");
+                stateCell.appendChild(createSelect(STATE_OPTIONS, "state", eventState));
+
+                row.appendChild(sourceCell);
+                row.appendChild(stateCell);
+                tbody.appendChild(row);
+            }
+        });
+
+        document.getElementById("generateBtn").addEventListener("click", () => {
+            const mappings = {
+                "Source Door": null,
+                "Source Manual": null,
+                "Source Auto": null,
+                "Source App": null,
+                "Door Open": null,
+                "Door Closed": null,
+                "Lock Locked": null,
+                "Lock Unlocked": null
+            };
+
+            document.querySelectorAll("select").forEach(select => {
+                if (!select.value) return;
+
+                const raw = select.dataset.raw;
+                const label =
+                    select.dataset.type === "source"
+                        ? `Source ${select.value}`
+                        : `${select.value.includes("Open") || select.value.includes("Closed") ? "Door" : "Lock"} ${select.value}`;
+
+                if (mappings[label] === null) {
+                    mappings[label] = raw;
+                }
+            });
+
+            const missing = Object.entries(mappings)
+                .filter(([, v]) => v === null)
+                .map(([k]) => k);
+
+            const warning = document.getElementById("warning");
+            warning.style.display = missing.length ? "block" : "none";
+            warning.textContent = missing.length
+                ? "Warning: missing values — " + missing.join(", ")
+                : "";
+
+            const output = Object.entries(mappings)
+                .filter(([, v]) => v !== null)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join("\n");
+
+            document.getElementById("output").textContent = output;
+        });
+    </script>
+
+</body>
+
+</html>

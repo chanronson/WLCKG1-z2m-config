@@ -5,179 +5,394 @@
     <meta charset="UTF-8">
     <title>WLCKG1 Log Parser</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: system-ui, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
+/* ---------- THEME ---------- */
 
-        h1 {
-            font-size: 20px;
-            margin-bottom: 12px;
-        }
+:root {
+  --bg: #121212;
+  --fg: #e0e0e0;
+  --card: #1e1e1e;
+  --border: #2a2a2a;
+  --accent: #4ea1ff;
+  --warning: #faa05b;
+}
 
-        input[type="file"] {
-            margin-bottom: 16px;
-        }
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f5f5;
+    --fg: #1a1a1a;
+    --card: #ffffff;
+    --border: #d0d0d0;
+    --accent: #0066cc;
+  }
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-        }
+body:has(#themeToggle:checked) {
+  --bg: #f5f5f5;
+  --fg: #1a1a1a;
+  --card: #ffffff;
+  --border: #d0d0d0;
+  --accent: #0066cc;
+}
 
-        th,
-        td {
-            border: 1px solid #2a2a2a;
-            padding: 8px 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #1f1f1f;
-        }
-
-        tr:nth-child(even) {
-            background-color: #181818;
-        }
-
-        .badge {
-            background-color: #2b2b2b;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        .container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px;
+body {
+  background: var(--bg);
+  color: var(--fg);
   font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 16px;
+}
+
+/* ---------- LAYOUT ---------- */
+
+.container {
+  max-width: 900px;
+  margin: auto;
 }
 
 .card {
-  background: #1e1e1e;
+  background: var(--card);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
+  border: 1px solid var(--border);
 }
 
-h1,
-h2 {
-  margin-top: 0;
+.card.static {
+  padding: 16px;
 }
 
-.step {
-  margin-bottom: 16px;
+summary {
+  cursor: pointer;
+  list-style: none;
 }
 
-.instructions-list {
-  padding-left: 20px;
+summary::-webkit-details-marker {
+  display: none;
 }
 
-.instructions-list li {
-  margin-bottom: 8px;
+summary h2 {
+  display: inline;
 }
+
+details[open] summary {
+  margin-bottom: 12px;
+}
+
+/* ---------- ACCESSIBILITY ---------- */
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button,
+input,
+select {
+  font-size: 1rem;
+}
+
+/* ---------- FORMS ---------- */
 
 .form-group {
   margin-bottom: 16px;
 }
 
-.warning {
-  color: #faa05b;
-  margin-bottom: 8px;
-}
-
 .primary-button {
   padding: 8px 16px;
-  font-size: 1rem;
   cursor: pointer;
 }
 
+.warning {
+  color: var(--warning);
+  margin-bottom: 8px;
+}
+
+/* ---------- TABLE ---------- */
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  min-width: 600px;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
+}
+
+tbody tr:has(select:not([value=""])) {
+  background-color: rgba(78, 161, 255, 0.08);
+}
+
+tbody tr:hover {
+  background-color: rgba(78, 161, 255, 0.15);
+}
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width: 600px) {
+  body {
+    padding: 8px;
+  }
+
+  h1 {
+    font-size: 1.1rem;
+  }
+
+  h2 {
+    font-size: 1rem;
+  }
+
+  .primary-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  table {
+    font-size: 0.85rem;
+  }
+
+  select {
+    width: 100%;
+  }
+
+  td {
+    vertical-align: top;
+  }
+}
+
+
+/* ---------- THEME TOGGLE ---------- */
+
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+
+details[open] .chevron {
+  transform: rotate(45deg);
+}
+
+select {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+select:disabled {
+  opacity: 0.4;
+}
+/* theme switch */
+.theme-switch {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.theme-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.theme-text {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.theme-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Switch track */
+.theme-slider {
+  width: 36px;
+  height: 20px;
+  background: var(--border);
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+/* Switch thumb */
+.theme-slider::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--fg);
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+/* Checked state */
+.theme-toggle:checked + .theme-slider {
+  background: var(--accent);
+}
+
+.theme-toggle:checked + .theme-slider::after {
+  transform: translateX(16px);
+}
+
+/* Keyboard focus */
+.theme-toggle:focus-visible + .theme-slider {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
     </style>
 </head>
 
 <body>
-<main class="container" aria-labelledby="page-title">
-  <header class="card">
-    <h1 id="page-title">WLCKG1 Raw Log Analyzer for zigbee2mqtt (Z2M)</h1>
-  </header>
+<div class="theme-switch">
+  <label for="themeToggle" class="theme-label">
+    <span class="theme-text">Light Theme</span>
+    <input
+      type="checkbox"
+      id="themeToggle"
+      class="theme-toggle"
+      aria-label="Toggle light or dark theme"
+    >
+    <span class="theme-slider" aria-hidden="true"></span>
+  </label>
+</div>
+  <main class="container" aria-labelledby="page-title">
+    <header class="card static">
+      <h1 id="page-title">WLCKG1 Raw Log Analyzer for zigbee2mqtt (Z2M)</h1>
+    </header>
 
-  <section class="card" aria-labelledby="instructions-title">
-    <h2 id="instructions-title">Instructions</h2>
+    <details class="card" open>
+<summary class="card-header">
+  <span class="chevron" aria-hidden="true"></span>
+        <h2 id="instructions-title">Instructions</h2>
+      </summary>
 
-    <div class="step">
-      <p>Add this file:</p>
-      <p>
-        <a href="zigbee2mqtt/external_converters/wyze-lock-ext.js">
+      <div class="step">
+        <p>Add this file:</p>
+        <p>
+          right click and save to: 
+          <a href="zigbee2mqtt/external_converters/wyze-lock-ext.js"
+          download="wyze-lock-ext.js"
+          aria-label="Download wyze-lock-ext.js">
           zigbee2mqtt/external_converters/wyze-lock-ext.js
-        </a>
-      </p>
-    </div>
+            
+          </a>
+        </p>
+      </div>
 
-    <div class="step">
-      <p>Add the following to the bottom of your <code>config.yaml</code>:</p>
-      <pre aria-label="config.yaml example">
+      <div class="step">
+        <p>Add the following to the bottom of your <code>config.yaml</code>:</p>
+        <pre aria-label="config.yaml example">
 external_converters:
   - wyze-lock-ext.js
-      </pre>
-    </div>
+        </pre>
+      </div>
 
-    <ol class="instructions-list">
-      <li>Restart the server</li>
-      <li>Open the logs in Z2M</li>
-      <li>Set <code>Logs limit</code> to <code>1000</code></li>
-      <li>Set <code>Log level config</code> to <code>debug</code></li>
-      <li>Clear the logs</li>
-      <li>
-        Write down the order you will complete the actions
-        (example: locked → unlock → open → close → lock → app → auto-lock)
-      </li>
-      <li>Perform each action with a 10-second pause between steps</li>
-      <li>Save the log file to your computer</li>
-    </ol>
-  </section>
+      <ol class="instructions-list">
+        <li>Restart the server</li>
+        <li>Open the logs in Z2M</li>
+        <li>Set <code>Logs limit</code> to <code>1000</code></li>
+        <li>Set <code>Log level config</code> to <code>debug</code></li>
+        <li>Clear the logs</li>
+        <li>Record action order (locked → unlock → open → close → lock → app → auto-lock)</li>
+        <li>Pause 10 seconds between actions</li>
+        <li>Save the log file</li>
+      </ol>
+    </details>
 
-  <section class="card" aria-labelledby="upload-title">
-    <h2 id="upload-title">Log File</h2>
+    <details class="card" open>
+<summary class="card-header">
+  <span class="chevron" aria-hidden="true"></span>
+        <h2 id="upload-title">Log File</h2>
+      </summary>
 
-    <div
-      id="warning"
-      class="warning"
-      role="alert"
-      aria-live="polite"
-      hidden
-    ></div>
+      <div
+        id="warning"
+        class="warning"
+        role="alert"
+        aria-live="polite"
+        hidden
+      ></div>
 
-    <div class="form-group">
-      <label for="fileInput">Select log file</label>
-      <input
-        type="file"
-        id="fileInput"
-        accept=".log,.txt"
-      >
-    </div>
+      <div class="form-group">
+        <label for="fileInput">Select log file</label>
+        <input type="file" id="fileInput" accept=".log,.txt">
+      </div>
 
-    <button id="generateBtn" class="primary-button">
-      Generate Settings
-    </button>
-  </section>
-</main>
+      <button id="generateBtn" class="primary-button">
+        Generate Settings
+      </button>
+    </details>
+  </main>
 
-    <pre id="output"></pre>
+  <pre id="output"></pre>
 
+<section class="results-section">
+  <pre id="output"></pre>
+
+  <div class="table-wrapper">
     <table>
-        <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Data Length</th>
-                <th>Event Source</th>
-                <th>Event State</th>
-            </tr>
-        </thead>
-        <tbody id="results"></tbody>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Data Length</th>
+          <th>Event Source</th>
+          <th>Event State</th>
+        </tr>
+      </thead>
+      <tbody id="results"></tbody>
     </table>
+    </div>
+</section>
+
 
     <script>
         const SOURCE_OPTIONS = ["Door", "Manual", "Auto", "App", "Lock"];

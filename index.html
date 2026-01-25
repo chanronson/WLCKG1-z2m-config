@@ -5,394 +5,381 @@
     <meta charset="UTF-8">
     <title>WLCKG1 Log Parser</title>
     <style>
-/* ---------- THEME ---------- */
+        /* ---------- THEME ---------- */
 
-:root {
-  --bg: #121212;
-  --fg: #e0e0e0;
-  --card: #1e1e1e;
-  --border: #2a2a2a;
-  --accent: #4ea1ff;
-  --warning: #faa05b;
-}
+        :root {
+            --bg: #121212;
+            --fg: #e0e0e0;
+            --card: #1e1e1e;
+            --border: #2a2a2a;
+            --accent: #4ea1ff;
+            --warning: #faa05b;
+        }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f5f5f5;
-    --fg: #1a1a1a;
-    --card: #ffffff;
-    --border: #d0d0d0;
-    --accent: #0066cc;
-  }
-}
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f5f5f5;
+                --fg: #1a1a1a;
+                --card: #ffffff;
+                --border: #d0d0d0;
+                --accent: #0066cc;
+            }
+        }
 
-body:has(#themeToggle:checked) {
-  --bg: #f5f5f5;
-  --fg: #1a1a1a;
-  --card: #ffffff;
-  --border: #d0d0d0;
-  --accent: #0066cc;
-}
+        body:has(#themeToggle:checked) {
+            --bg: #f5f5f5;
+            --fg: #1a1a1a;
+            --card: #ffffff;
+            --border: #d0d0d0;
+            --accent: #0066cc;
+        }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, sans-serif;
-  margin: 0;
-  padding: 16px;
-}
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
 
-/* ---------- LAYOUT ---------- */
+        /* ---------- LAYOUT ---------- */
 
-.container {
-  max-width: 900px;
-  margin: auto;
-}
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
 
-.card {
-  background: var(--card);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  border: 1px solid var(--border);
-}
+        .card {
+            background: var(--card);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
 
-.card.static {
-  padding: 16px;
-}
+        .card.static {
+            padding: 16px;
+        }
 
-summary {
-  cursor: pointer;
-  list-style: none;
-}
+        summary {
+            cursor: pointer;
+            list-style: none;
+        }
 
-summary::-webkit-details-marker {
-  display: none;
-}
+        summary::-webkit-details-marker {
+            display: none;
+        }
 
-summary h2 {
-  display: inline;
-}
+        summary h2 {
+            display: inline;
+        }
 
-details[open] summary {
-  margin-bottom: 12px;
-}
+        details[open] summary {
+            margin-bottom: 12px;
+        }
 
-/* ---------- ACCESSIBILITY ---------- */
+        /* ---------- ACCESSIBILITY ---------- */
 
-a {
-  color: var(--accent);
-}
+        a {
+            color: var(--accent);
+        }
 
-:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
+        :focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
 
-button,
-input,
-select {
-  font-size: 1rem;
-}
+        button,
+        input,
+        select {
+            font-size: 1rem;
+        }
 
-/* ---------- FORMS ---------- */
+        /* ---------- FORMS ---------- */
 
-.form-group {
-  margin-bottom: 16px;
-}
+        .form-group {
+            margin-bottom: 16px;
+        }
 
-.primary-button {
-  padding: 8px 16px;
-  cursor: pointer;
-}
+        .primary-button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
 
-.warning {
-  color: var(--warning);
-  margin-bottom: 8px;
-}
+        .warning {
+            color: var(--warning);
+            margin-bottom: 8px;
+        }
 
-/* ---------- TABLE ---------- */
+        /* ---------- TABLE ---------- */
 
-.table-wrapper {
-  overflow-x: auto;
-}
+        .table-wrapper {
+            overflow-x: auto;
+        }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-  min-width: 600px;
-}
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            min-width: 600px;
+        }
 
-th,
-td {
-  border: 1px solid var(--border);
-  padding: 8px;
-  text-align: left;
-}
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 8px;
+            text-align: left;
+        }
 
-th {
-  background: rgba(0, 0, 0, 0.1);
-}
+        th {
+            background: rgba(0, 0, 0, 0.1);
+        }
 
-thead th {
-  position: sticky;
-  top: 0;
-  background: var(--card);
-  z-index: 1;
-}
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--card);
+            z-index: 1;
+        }
 
-tbody tr:has(select:not([value=""])) {
-  background-color: rgba(78, 161, 255, 0.08);
-}
+        tbody tr:has(select:not([value=""])) {
+            background-color: rgba(78, 161, 255, 0.08);
+        }
 
-tbody tr:hover {
-  background-color: rgba(78, 161, 255, 0.15);
-}
+        tbody tr:hover {
+            background-color: rgba(78, 161, 255, 0.15);
+        }
 
-/* ---------- MOBILE ---------- */
+        /* ---------- MOBILE ---------- */
 
-@media (max-width: 600px) {
-  body {
-    padding: 8px;
-  }
+        @media (max-width: 600px) {
+            body {
+                padding: 8px;
+            }
 
-  h1 {
-    font-size: 1.1rem;
-  }
+            h1 {
+                font-size: 1.1rem;
+            }
 
-  h2 {
-    font-size: 1rem;
-  }
+            h2 {
+                font-size: 1rem;
+            }
 
-  .primary-button {
-    width: 100%;
-  }
-}
+            .primary-button {
+                width: 100%;
+            }
+        }
 
-@media (max-width: 600px) {
-  table {
-    font-size: 0.85rem;
-  }
+        @media (max-width: 600px) {
+            table {
+                font-size: 0.85rem;
+            }
 
-  select {
-    width: 100%;
-  }
+            select {
+                width: 100%;
+            }
 
-  td {
-    vertical-align: top;
-  }
-}
+            td {
+                vertical-align: top;
+            }
+        }
 
 
-/* ---------- THEME TOGGLE ---------- */
+        /* ---------- THEME TOGGLE ---------- */
 
-.theme-toggle {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  width: 20px;
-  height: 20px;
-}
+        .theme-toggle {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            width: 20px;
+            height: 20px;
+        }
 
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-.chevron {
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 0.2s ease;
-}
+        .chevron {
+            width: 10px;
+            height: 10px;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: rotate(-45deg);
+            transition: transform 0.2s ease;
+        }
 
-details[open] .chevron {
-  transform: rotate(45deg);
-}
+        details[open] .chevron {
+            transform: rotate(45deg);
+        }
 
-select {
-  background: var(--card);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  padding: 4px 6px;
-  border-radius: 4px;
-}
+        select {
+            background: var(--card);
+            color: var(--fg);
+            border: 1px solid var(--border);
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
 
-select:disabled {
-  opacity: 0.4;
-}
-/* theme switch */
-.theme-switch {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-}
+        select:disabled {
+            opacity: 0.4;
+        }
 
-.theme-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-}
+        /* theme switch */
+        .theme-switch {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
 
-.theme-text {
-  font-size: 0.9rem;
-  opacity: 0.8;
-}
+        .theme-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
 
-.theme-toggle {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
+        .theme-text {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
 
-/* Switch track */
-.theme-slider {
-  width: 36px;
-  height: 20px;
-  background: var(--border);
-  border-radius: 999px;
-  position: relative;
-  transition: background 0.2s ease;
-}
+        .theme-toggle {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
 
-/* Switch thumb */
-.theme-slider::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--fg);
-  border-radius: 50%;
-  transition: transform 0.2s ease;
-}
+        /* Switch track */
+        .theme-slider {
+            width: 36px;
+            height: 20px;
+            background: var(--border);
+            border-radius: 999px;
+            position: relative;
+            transition: background 0.2s ease;
+        }
 
-/* Checked state */
-.theme-toggle:checked + .theme-slider {
-  background: var(--accent);
-}
+        /* Switch thumb */
+        .theme-slider::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: var(--fg);
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+        }
 
-.theme-toggle:checked + .theme-slider::after {
-  transform: translateX(16px);
-}
+        /* Checked state */
+        .theme-toggle:checked+.theme-slider {
+            background: var(--accent);
+        }
 
-/* Keyboard focus */
-.theme-toggle:focus-visible + .theme-slider {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
+        .theme-toggle:checked+.theme-slider::after {
+            transform: translateX(16px);
+        }
+
+        /* Keyboard focus */
+        .theme-toggle:focus-visible+.theme-slider {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
     </style>
 </head>
 
 <body>
-<div class="theme-switch">
-  <label for="themeToggle" class="theme-label">
-    <span class="theme-text">Light Theme</span>
-    <input
-      type="checkbox"
-      id="themeToggle"
-      class="theme-toggle"
-      aria-label="Toggle light or dark theme"
-    >
-    <span class="theme-slider" aria-hidden="true"></span>
-  </label>
-</div>
-  <main class="container" aria-labelledby="page-title">
-    <header class="card static">
-      <h1 id="page-title">WLCKG1 Raw Log Analyzer for zigbee2mqtt (Z2M)</h1>
-    </header>
+    <main class="container" aria-labelledby="page-title">
+        <div class="theme-switch">
+            <label for="themeToggle" class="theme-label">
+                <span class="theme-text">Light Theme</span>
+                <input type="checkbox" id="themeToggle" class="theme-toggle" aria-label="Toggle light or dark theme">
+                <span class="theme-slider" aria-hidden="true"></span>
+            </label>
+        </div>
+        <header class="card static">
+            <h1 id="page-title">WLCKG1 Raw Log Analyzer for zigbee2mqtt (Z2M)</h1>
+        </header>
 
-    <details class="card" open>
-<summary class="card-header">
-  <span class="chevron" aria-hidden="true"></span>
-        <h2 id="instructions-title">Instructions</h2>
-      </summary>
+        <details class="card" open>
+            <summary class="card-header">
+                <span class="chevron" aria-hidden="true"></span>
+                <h2 id="instructions-title">Instructions</h2>
+            </summary>
 
-      <div class="step">
-        <p>Add this file:</p>
-        <p>
-          right click and save to: 
-          <a href="zigbee2mqtt/external_converters/wyze-lock-ext.js"
-          download="wyze-lock-ext.js"
-          aria-label="Download wyze-lock-ext.js">
-          zigbee2mqtt/external_converters/wyze-lock-ext.js
-            
-          </a>
-        </p>
-      </div>
+            <div class="step">
+                <p>Add this file:</p>
+                <p>
+                    right click and save to:
+                    <a href="zigbee2mqtt/external_converters/wyze-lock-ext.js" download="wyze-lock-ext.js"
+                        aria-label="Download wyze-lock-ext.js">
+                        zigbee2mqtt/external_converters/wyze-lock-ext.js
 
-      <div class="step">
-        <p>Add the following to the bottom of your <code>config.yaml</code>:</p>
-        <pre aria-label="config.yaml example">
+                    </a>
+                </p>
+            </div>
+
+            <div class="step">
+                <p>Add the following to the bottom of your <code>config.yaml</code>:</p>
+                <pre aria-label="config.yaml example">
 external_converters:
   - wyze-lock-ext.js
         </pre>
-      </div>
+            </div>
 
-      <ol class="instructions-list">
-        <li>Restart the server</li>
-        <li>Open the logs in Z2M</li>
-        <li>Set <code>Logs limit</code> to <code>1000</code></li>
-        <li>Set <code>Log level config</code> to <code>debug</code></li>
-        <li>Clear the logs</li>
-        <li>Record action order (locked → unlock → open → close → lock → app → auto-lock)</li>
-        <li>Pause 10 seconds between actions</li>
-        <li>Save the log file</li>
-      </ol>
-    </details>
+            <ol class="instructions-list">
+                <li>Restart the server</li>
+                <li>Open the logs in Z2M</li>
+                <li>Set <code>Logs limit</code> to <code>1000</code></li>
+                <li>Set <code>Log level config</code> to <code>debug</code></li>
+                <li>Clear the logs</li>
+                <li>Record action order (locked → unlock → open → close → lock → app → auto-lock)</li>
+                <li>Pause 10 seconds between actions</li>
+                <li>Save the log file</li>
+            </ol>
+        </details>
 
-    <details class="card" open>
-<summary class="card-header">
-  <span class="chevron" aria-hidden="true"></span>
-        <h2 id="upload-title">Log File</h2>
-      </summary>
+        <details class="card" open>
+            <summary class="card-header">
+                <span class="chevron" aria-hidden="true"></span>
+                <h2 id="upload-title">Log File</h2>
+            </summary>
 
-      <div
-        id="warning"
-        class="warning"
-        role="alert"
-        aria-live="polite"
-        hidden
-      ></div>
+            <div id="warning" class="warning" role="alert" aria-live="polite" hidden></div>
 
-      <div class="form-group">
-        <label for="fileInput">Select log file</label>
-        <input type="file" id="fileInput" accept=".log,.txt">
-      </div>
+            <div class="form-group">
+                <label for="fileInput">Select log file</label>
+                <input type="file" id="fileInput" accept=".log,.txt">
+            </div>
 
-      <button id="generateBtn" class="primary-button">
-        Generate Settings
-      </button>
-    </details>
-  </main>
+            <button id="generateBtn" class="primary-button">
+                Generate Settings
+            </button>
+        </details>
 
-  <pre id="output"></pre>
 
-<section class="results-section">
-  <pre id="output"></pre>
+        <section class="results-section">
+            <pre id="output"></pre>
 
-  <div class="table-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Data Length</th>
-          <th>Event Source</th>
-          <th>Event State</th>
-        </tr>
-      </thead>
-      <tbody id="results"></tbody>
-    </table>
-    </div>
-</section>
-
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Data Length</th>
+                            <th>Event Source</th>
+                            <th>Event State</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
     <script>
         const SOURCE_OPTIONS = ["Door", "Manual", "Auto", "App", "Lock"];

@@ -2,6 +2,7 @@
 
 Include nice to haves for getting the Wyse WLCKG1 working with zigbee2mqtt
 use this external converter: [wyze-lock-ext.js](zigbee2mqtt/external_converters/wyze-lock-ext.js)
+
 ## Credits
 
 - [zigbee2mqtt](https://www.zigbee2mqtt.io/)

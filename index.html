@@ -334,35 +334,33 @@ external_converters:
             <ol class="instructions-list">
                 <li>Restart the server</li>
                 <li>Open the logs in Z2M</li>
+                <li>Set <code>Show only</code> to <code>debug</code></li>
+                <li>In <code>Filter by text</code> type <code>raw</code></li>
                 <li>Set <code>Logs limit</code> to <code>1000</code></li>
                 <li>Set <code>Log level config</code> to <code>debug</code></li>
                 <li>Clear the logs</li>
-                <li>Record action order (locked → unlock → open → close → lock → app → auto-lock)</li>
-                <li>Pause 10 seconds between actions</li>
-                <li>Save the log file</li>
+                <li>Record/remember action order (app lock/unlock →locked → unlock → open → close → lock → auto-lock)
+                </li>
+                <li>Pause for a few seconds between actions</li>
+                <li>Copy all the logs; paste below</li>
             </ol>
         </details>
 
         <details class="card" open>
             <summary class="card-header">
                 <span class="chevron" aria-hidden="true"></span>
-                <h2 id="upload-title">Log File</h2>
+                <h2 id="upload-title">Log Text</h2>
             </summary>
 
-            <div id="warning" class="warning" role="alert" aria-live="polite" hidden></div>
-
             <div class="form-group">
-                <label for="fileInput">Select log file</label>
-                <input type="file" id="fileInput" accept=".log,.txt">
+                <label for="logs">Paste Logs here:</label>
+                <br>
+                <textarea id="logs"></textarea>
             </div>
-
-            <button id="generateBtn" class="primary-button">
-                Generate Settings
-            </button>
         </details>
 
-
         <section class="results-section">
+            <div id="warning" class="warning" role="alert" aria-live="polite" hidden></div>
             <pre id="output"></pre>
 
             <div class="table-wrapper">
@@ -378,6 +376,16 @@ external_converters:
                     <tbody id="results"></tbody>
                 </table>
             </div>
+        </section>
+        <section>
+            <details class="card" open>
+            <summary class="card-header">
+                <span class="chevron" aria-hidden="true"></span>
+                <h2 id="code-title">Code and issues</h2>
+            </summary>
+            <a href="https://github.com/JamesOsborn-SE/WLCKG1-z2m-config"> GitHub</a>
+        </details>
+
         </section>
     </main>
 
@@ -451,21 +459,20 @@ external_converters:
                 } else {
                     onStateChange(select);
                 }
+                updateOutput();
             });
 
             return select;
         }
-        document.getElementById("fileInput").addEventListener("change", async function () {
-            const file = this.files[0];
-            if (!file) return;
-
-            const text = await file.text();
+        logText = document.getElementById("logs")
+        logText.addEventListener("change", function (event) {
+            const text = logText.value;
             const lines = text.split(/\r?\n/);
             const tbody = document.getElementById("results");
             tbody.innerHTML = "";
 
             for (const line of lines) {
-                if (!line.includes("WLCKG1")) continue;
+                if (!line.includes("Lock")) continue;
                 if (!line.includes("type 'raw'")) continue;
                 if (!line.includes('"data":')) continue;
 
@@ -509,7 +516,7 @@ external_converters:
             }
         });
 
-        document.getElementById("generateBtn").addEventListener("click", () => {
+        function updateOutput() {
             const mappings = {
                 "Source Door": null,
                 "Source Manual": null,
@@ -546,12 +553,12 @@ external_converters:
                 : "";
 
             const output = Object.entries(mappings)
-                .filter(([, v]) => v !== null)
                 .map(([k, v]) => `${k}: ${v}`)
                 .join("\n");
 
             document.getElementById("output").textContent = output;
-        });
+        };
+        updateOutput();
     </script>
 
 </body>

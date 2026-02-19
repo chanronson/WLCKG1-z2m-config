@@ -28,14 +28,14 @@ const e = exposes.presets;
 //  │  19 │ Manual     — thumbturn physically turned                           │
 //  │   5 │ Auto-Lock  — internal timer fired                                  │
 //  │  12 │ App/Remote — Zigbee or Bluetooth command                           │
-//  │ 242 │ Door       — accelerometer only (unconfirmed, not yet observed)    │
+//  │ 233 │ Door       — accelerometer event (0xE9, confirmed from hardware)   │
 //  └─────┴─────────────────────────────────────────────────────────────────────┘
 //
 //  data[46] — Unified State (single composite value encoding lock + door)
 //
 //  IMPORTANT: data[46] is NOT two independent lookups. All events observed so
 //  far arrive as data[57]=19 regardless of trigger (thumbturn, accelerometer,
-//  vibration). The EVT_DOOR=242 event type has NOT been observed in hardware.
+//  vibration). EVT_DOOR=233 fires from the accelerometer independently of thumbturn events.
 //
 //  ┌─────┬────────────┬─────────────┬──────────────────────────────────────────┐
 //  │   0 │ LOCKED     │ (no update) │ accelerometer movement while locked;     │
@@ -52,9 +52,11 @@ const e = exposes.presets;
 //  NOTE ON STALENESS: The coordinator never ACKs these frames, so the lock
 //  queues and retransmits them indefinitely. data[13] ordering prevents
 //  same-event retransmissions and old-seq delayed messages from being
-//  processed, but cannot detect a genuinely new seq that was generated
-//  before the current physical state changed. Handle staleness in HA
-//  automations if needed.
+//  processed. Additionally, wall-clock time tracking detects stale events:
+//  if the time delta between events is disproportionate to the counter delta
+//  (e.g., counter increments by 3 but 5 minutes elapsed), the event is dropped
+//  as stale. Pattern detection also flags messages arriving at :23 or :53
+//  past the hour as likely stale auto-lock events.
 // =============================================================================
 
 // --- Byte indices ---
@@ -65,9 +67,10 @@ const IDX_STATE      = 46;
 // --- Event type values ---
 const EVT_MANUAL     = 19;
 const EVT_AUTO       = 5;
-const EVT_APP        = 12;
-const EVT_DOOR       = 242; // retained defensively — not yet observed in hardware logs
-const LOCK_EVT_TYPES = new Set([EVT_MANUAL, EVT_AUTO, EVT_APP]);
+const EVT_APP        = 12;  // 0x0C — app-triggered (original)
+const EVT_APP2       = 23;  // 0x17 — app-triggered (alternate, observed 2026-02-17)
+const EVT_DOOR       = 233; // 0xE9 — confirmed from hardware (Gemini reported 242, incorrect)
+const LOCK_EVT_TYPES = new Set([EVT_MANUAL, EVT_AUTO, EVT_APP, EVT_APP2]);
 
 // --- Unified state map ---
 // door: null = do not publish door_state or contact for this event.
@@ -80,8 +83,9 @@ const STATE_MAP = {
 };
 
 // =============================================================================
-// Deduplication — monotonic sequence number (high-water mark)
+// Deduplication & Staleness Detection
 //
+// DEDUPLICATION (high-water mark):
 // Uses data[IDX_SEQ] = data[13], a global lifetime counter that is more stable
 // than data[3] which can reset on device reconnect.
 // (Cross-referenced against ZHA quirk by mariusmuja which uses the equivalent
@@ -101,8 +105,25 @@ const STATE_MAP = {
 //     incoming=73, highWater=72  → diff=255 (≥128) → KEEP  ✓ new event
 //     incoming=5,  highWater=200 → diff=61  (<128) → DROP  ✗ wrap — increase
 //                                                            window if needed
+//
+// STALENESS DETECTION (time delta analysis):
+// Tracks wall-clock timestamps alongside counter values. Detects stale events
+// by comparing time elapsed vs counter increment:
+//   - Each event takes ~10-15s to transmit (3 retries + delays)
+//   - If counter Δ=3 but time Δ=300s, the events were generated 5 min ago → STALE
+//   - Pattern detection: messages at :23 or :53 past the hour with >2min gaps
+//     are flagged as stale auto-lock events (30-minute timer)
+//
+// This catches genuinely new sequence numbers that represent old physical state.
 // =============================================================================
 const _seqHighWater = new Map(); // ieeeAddr → highest data[13] seen (0–255)
+const _lastEventTime = new Map(); // ieeeAddr → { counter: N, timestamp: ms }
+//
+// IMPORTANT: _lastEventTime is intentionally NOT updated inside isOldOrDuplicate.
+// It must only be written via markEventProcessed(), which is called after BOTH
+// isOldOrDuplicate() AND isStale() have passed. If we wrote it inside
+// isOldOrDuplicate, isStale() would always see counterDelta=0 / timeDelta=0
+// and would never be able to detect staleness.
 
 function isOldOrDuplicate(msg) {
     const incoming  = msg.data[IDX_SEQ];
@@ -111,6 +132,7 @@ function isOldOrDuplicate(msg) {
 
     if (highWater === undefined) {
         _seqHighWater.set(id, incoming);
+        // _lastEventTime intentionally not set here — markEventProcessed() will do it
         return false;
     }
 
@@ -124,7 +146,51 @@ function isOldOrDuplicate(msg) {
     }
 
     _seqHighWater.set(id, incoming);
+    // _lastEventTime intentionally not set here — markEventProcessed() will do it
     return false;
+}
+
+function isStale(msg, eventState) {
+    // Only apply staleness detection to unlock events (state=103).
+    // Lock events (state=96) and door events are never the stale phantom problem.
+    if (eventState !== 103) return false;
+
+    const incoming = msg.data[IDX_SEQ];
+    const id       = msg.device.ieeeAddr;
+    const now      = Date.now();
+    const last     = _lastEventTime.get(id);
+
+    if (!last) return false; // no prior processed event to compare against
+
+    const counterDelta = (incoming - last.counter + 256) % 256;
+    const timeDeltaMs  = now - last.timestamp;
+    const timeDeltaSec = Math.floor(timeDeltaMs / 1000);
+
+    // Safety valve: after 2 hours of idle the stale queue is long gone.
+    // Treat the device as waking from rest and process the event fresh.
+    // (Prevents false positives when counter wraps overnight.)
+    if (timeDeltaSec > 7200) return false;
+
+    // Each event takes ~9-10 seconds per retry cycle. Allow 60s per counter step
+    // (very generous) to avoid false positives on real events a minute or two apart.
+    // Require a hard minimum of 300s (5 min) to never false-positive on normal use.
+    const expectedMaxSec = counterDelta * 60;
+    if (timeDeltaSec > expectedMaxSec && timeDeltaSec > 300) {
+        logger.logger.warning(
+            `[wyze-lock] Dropping stale unlock from ${id} ` +
+            `(counter=${incoming}, Δcounter=${counterDelta}, ` +
+            `Δtime=${timeDeltaSec}s, expected≤${expectedMaxSec}s) — ` +
+            `event queued ~${Math.round(timeDeltaSec/60)} min ago`
+        );
+        return true;
+    }
+
+    return false;
+}
+
+function markEventProcessed(msg) {
+    const id = msg.device.ieeeAddr;
+    _lastEventTime.set(id, { counter: msg.data[IDX_SEQ], timestamp: Date.now() });
 }
 
 // =============================================================================
@@ -135,11 +201,58 @@ const fzLocal = {
         cluster: 'manuSpecificAssaDoorLock',
         type: ['raw'],
         convert: (model, msg, publish, options, meta) => {
+            // INLINE CLUSTER PATCH: Run once on first message to add command 0x00 to
+            // manuSpecificAssaDoorLock.commandsResponse so zh can parse frames without throwing.
+            if (!fzLocal._clusterPatched) {
+                try {
+                    // Access zigbee-herdsman's live cluster registry through z2m's Zcl export.
+                    // This runs from within z2m's context so module resolution works.
+                    const zhc = require('zigbee-herdsman-converters');
+                    const Zcl = zhc.Zcl || (zhc.default && zhc.default.Zcl);
+                    
+                    if (Zcl && Zcl.Clusters && Zcl.Clusters.manuSpecificAssaDoorLock) {
+                        const cluster = Zcl.Clusters.manuSpecificAssaDoorLock;
+                        if (!cluster.commandsResponse) cluster.commandsResponse = {};
+                        
+                        // Only patch if not already present (idempotent)
+                        const hasCmd0 = Object.values(cluster.commandsResponse)
+                            .some(cmd => cmd.ID === 0x00);
+                        
+                        if (!hasCmd0) {
+                            cluster.commandsResponse.wyzeEvent = { ID: 0x00, parameters: [] };
+                            logger.logger.info(
+                                '[wyze-lock] Patched manuSpecificAssaDoorLock cluster: ' +
+                                'added wyzeEvent(0x00) to commandsResponse. ' +
+                                'zh will no longer throw "has no command 0" errors.'
+                            );
+                        } else {
+                            logger.logger.debug('[wyze-lock] Cluster already patched, skipping.');
+                        }
+                    } else {
+                        logger.logger.warning(
+                            '[wyze-lock] Could not locate Zcl.Clusters for patching. ' +
+                            'Retransmissions may continue.'
+                        );
+                    }
+                } catch (e) {
+                    logger.logger.warning(
+                        `[wyze-lock] Cluster patch failed: ${e.message}. Retransmissions may continue.`
+                    );
+                }
+                fzLocal._clusterPatched = true; // flag to ensure this runs only once
+            }
+
             if (msg.data.length < 70 || msg.data.length > 90) return;
             if (isOldOrDuplicate(msg)) return;
 
             const eventType  = msg.data[IDX_EVENT_TYPE];
             const eventState = msg.data[IDX_STATE];
+
+            // isStale must run AFTER eventState is read, and markEventProcessed
+            // must run AFTER isStale so the timestamp reflects only genuinely
+            // processed events — not stale ones that would poison future checks.
+            if (isStale(msg, eventState)) return;
+            markEventProcessed(msg);
             const counterStr = `counter=${msg.data[IDX_SEQ]}`;
             const result     = {};
 
@@ -165,6 +278,7 @@ const fzLocal = {
 
                 const action = eventType === EVT_MANUAL ? 'manual'
                              : eventType === EVT_AUTO   ? 'auto'
+                             : eventType === EVT_APP2   ? 'app'
                              :                            'app';
 
                 result.state      = stateInfo.locked ? 'LOCK'   : 'UNLOCK';
@@ -183,25 +297,50 @@ const fzLocal = {
                 );
             }
 
-            // --- Door-only events (accelerometer, not yet confirmed on hardware) ---
+            // --- Door-only events (accelerometer, data[57]=233) ---
             if (eventType === EVT_DOOR) {
-                const closed = [96, 112].includes(eventState);
-                const open   = [103, 115].includes(eventState);
-
-                if (closed || open) {
-                    result.door_state = closed ? 'closed' : 'open';
-                    result.contact    = closed;
+                if ([96, 112].includes(eventState)) {
+                    // Door closed — confirmed from hardware (state=112 at counter=78)
+                    result.door_state = 'closed';
+                    result.contact    = true;
                     logger.logger.debug(
-                        `[wyze-lock] door-only event: ${result.door_state} ` +
-                        `(${counterStr}, state=${eventState})`
+                        `[wyze-lock] door closed (accelerometer) (${counterStr}, state=${eventState})`
+                    );
+                } else if ([103, 115].includes(eventState)) {
+                    // Door open/ajar — confirmed from hardware (state=115)
+                    // state=115 encodes UNLOCKED+OPEN, so also correct lock_state here.
+                    // This serves as a safety net: if the unlock event (state=103) was
+                    // blocked by staleness detection but was actually real, the door-open
+                    // event (which fires within 1 second) will still report the correct state.
+                    result.door_state = 'open';
+                    result.contact    = false;
+                    if (eventState === 115) {
+                        result.lock_state = 'unlocked';
+                    }
+                    logger.logger.debug(
+                        `[wyze-lock] door open (accelerometer) (${counterStr}, state=${eventState})`
+                    );
+                } else if (eventState === 0) {
+                    // Door movement while locked — no meaningful position change, don't update
+                    logger.logger.debug(
+                        `[wyze-lock] door movement while locked, no state update (${counterStr}, state=${eventState})`
                     );
                 } else {
                     logger.logger.warning(
-                        `[wyze-lock] Unknown door-only state byte ${eventState} ` +
-                        `(0x${eventState.toString(16)}) at ${counterStr} — ignoring.`
+                        `[wyze-lock] Unknown door event state byte ${eventState} ` +
+                        `(0x${eventState.toString(16)}) at ${counterStr} — ignoring. Please report.`
                     );
                     return;
                 }
+            }
+
+            // --- Unknown event type catch-all ---
+            if (!LOCK_EVT_TYPES.has(eventType) && eventType !== EVT_DOOR) {
+                logger.logger.warning(
+                    `[wyze-lock] Unknown event type ${eventType} (0x${eventType.toString(16)}) ` +
+                    `at ${counterStr}, state=${eventState} — ignoring. Please report.`
+                );
+                return;
             }
 
             return result;
